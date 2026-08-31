@@ -1,7 +1,9 @@
 using RadiiPolynomial, LinearAlgebra
-using GLMakie
+using CairoMakie # for interactivity, use GLMakie instead
 
-import JLD2
+import JLD2, MAT
+
+
 
 
 
@@ -51,20 +53,29 @@ function approx_A(u, u̇, Π_K_A, Π_2K_A)
     return real(Π_K_A * inv(Π_2K_A * DF_ * Π_2K_A) * Π_K_A)
 end
 
+function approx_inverse_DvΦ(v, K_A)
+    vb = unpack(v)
+    U = DvΦ(vb[1:2], vb[3][1])
+    m = 2K_A + 1
+    U_grid = [real.(to_grid(U[i,j], m)) for i ∈ 1:2, j ∈ 1:2]
+    W_pts = [inv([U_grid[i,j][l] for i ∈ 1:2, j ∈ 1:2]) for l ∈ 1:m]
+    return [real(to_coef([W[i,j] for W ∈ W_pts], evensym(Fourier(K_A, π)))) for i ∈ 1:2, j ∈ 1:2]
+end
+
 #--
+
+
 
 
 
 # Step 2: Computing the approximate branch piece and inverse (floating-point)
 
-fig_skt = Figure()
+arcs = Vector{Vector{Point2f}}() # (d, v₂(0)) samples of each validated arc
 
-ax_skt = Axis(fig_skt[1,1])
-
-for (iter, name) ∈ enumerate(["u_bar1a", "u_bar1b", "u_bar1c",
-                              "u_bar2a", "u_bar2b", "u_bar2c", "u_bar2d",
-                              "u_bar3a", "u_bar3b", "u_bar3c", "u_bar3d",
-                              "u_bar4a", "u_bar4b", "u_bar4c"])
+for name ∈ ["u_bar1a", "u_bar1b", "u_bar1c",
+            "u_bar2a", "u_bar2b", "u_bar2c", "u_bar2d",
+            "u_bar3a", "u_bar3b", "u_bar3c", "u_bar3d",
+            "u_bar4a", "u_bar4b", "u_bar4c"]
 
 arclength = Dict("u_bar1a" => 0.38, "u_bar1b" => 0.19, "u_bar1c" => 0.26,
                  "u_bar2a" => 0.40, "u_bar2b" => 0.10, "u_bar2c" => 0.10, "u_bar2d" => 0.32,
@@ -151,22 +162,13 @@ end
 # end
 # JLD2.save(joinpath(@__DIR__, "skt_data.jld2"), data)
 
-#
-
-function approx_inverse_DvΦ(u, K_A)
-    ub = unpack(u)
-    U = DvΦ(ub[1:2], ub[3][1])
-    m = 2K_A + 1
-    U_grid = [real.(to_grid(U[i,j], m)) for i ∈ 1:2, j ∈ 1:2]
-    W_pts = [inv([U_grid[i,j][l] for i ∈ 1:2, j ∈ 1:2]) for l ∈ 1:m]
-    return [real(to_coef([W[i,j] for W ∈ W_pts], evensym(Fourier(K_A, π)))) for i ∈ 1:2, j ∈ 1:2]
-end
-
 W_grid = [approx_inverse_DvΦ(u, K_A) for u ∈ u_grid];
 
 # retrieve the Chebyshev interpolants
 
 u_cheb = interval(real(to_coef(interval.(u_grid), Chebyshev(N))));
+
+push!(arcs, [Point2f(mid(real(component(u_cheb, 3)(s))), mid(real(component(u_cheb, 2)(s, 0)))) for s ∈ LinRange(-1, 1, 201)])
 
 u̇_cheb = interval(real(to_coef(interval.(u̇_grid), Chebyshev(N))));
 
@@ -309,6 +311,7 @@ Z₂ = opnormAΔ * interval(max(2*d₁₁, d₁₂ + d₂₁, 2d₂₂, 1)) + op
 
 ie, proved = interval_of_existence(Y, Z₁, Z₂, r_star; verbose = true)
 proved || error("Proof failed")
+end
 
 
 
@@ -316,11 +319,74 @@ proved || error("Proof failed")
 
 # Plot
 
-lines!(ax_skt, [Point2f(mid(real(component(u_cheb, 3)(s))), mid(real(component(u_cheb, 2)(s, 0)))) for s ∈ LinRange(-1, 1, 501)];
-    color = ifelse(isodd(iter), :blue, :green), linewidth = 2)
+# `dataSKT.mat` contains the numerical continuation data of the bifurcation diagram:
+# - "datacurves": cell array of 2×n matrices whose rows are d and v₂(0) along each branch
+# - "databif": 2×m matrix of the bifurcation points
 
-scatter!(ax_skt, [Point2f(u_grid[j][end], real(component(u_grid[j], 2)(0))) for j ∈ 1:N+1];
-    color = ifelse(isodd(iter), :blue, :green))
+data_diagram = MAT.matread(joinpath(@__DIR__, "dataSKT.mat"))
+branch_data = [Matrix{Float64}(curve) for curve ∈ vec(data_diagram["datacurves"])]
+bif_points = Matrix{Float64}(data_diagram["databif"])
+
+proven_branches = [15, 21, 24, 30, 31] # branches validated by the proof above
+
+set_theme!(theme_latexfonts(); fontsize = 14)
+
+col_blue, col_green, col_red = colorant"#4477AA", colorant"#228833", colorant"#EE6677" # Tol bright palette
+
+fig_skt = Figure(; size = (605, 430)) # 605px ≈ 16cm: matches \textwidth at natural size
+ax_skt = Axis(fig_skt[1,1]; xlabel = L"d", ylabel = L"v_2(0)")
+
+for (i, curve) ∈ enumerate(branch_data)
+    if i ∉ proven_branches
+        scatter!(ax_skt, curve[1,:], curve[2,:];
+            color = col_blue, markersize = 2.5,
+            label = "numerical branches" => (; markersize = 8)) # larger dot in the legend for visibility
+    end
+end
+for i ∈ proven_branches
+    lines!(ax_skt, branch_data[i][1,:], branch_data[i][2,:];
+        color = col_red, linewidth = 2.5, label = "rigorously proven branches")
+end
+
+proven_bif = [9, 10, 11, 12]
+other_bif = setdiff(axes(bif_points, 2), proven_bif)
+
+scatter!(ax_skt, bif_points[1,other_bif], bif_points[2,other_bif];
+    marker = :rect, markersize = 9, color = :black, label = "bifurcation points")
+
+scatter!(ax_skt, bif_points[1,proven_bif], bif_points[2,proven_bif];
+    marker = :diamond, markersize = 13, color = col_green, strokecolor = :black, strokewidth = 1,
+    label = "bifurcation points near proven branches")
+
+scatter!(ax_skt, Point2f[]; # the endpoint circles live in the inset; this only adds them to the legend
+    marker = :circle, markersize = 6, color = :white, strokecolor = colorant"#7a2c3a", strokewidth = 1.2,
+    label = "endpoints of the arcs")
+
+tightlimits!(ax_skt)
+
+#- inset: the validated arcs, with open circles marking the junctions between consecutive arcs
+
+ax_arcs = Axis(fig_skt[1,1];
+    width = Relative(0.42), height = Relative(0.48), halign = :right, valign = :top,
+    backgroundcolor = :white, xticklabelsize = 10, yticklabelsize = 10)
+translate!(ax_arcs.scene, 0, 0, 10) # draw the inset above the main axis
+
+for arc ∈ arcs
+    lines!(ax_arcs, arc; color = col_red, linewidth = 2)
+end
+
+arc_junctions = [arc[k] for arc ∈ arcs for k ∈ (1, length(arc))]
+scatter!(ax_arcs, arc_junctions;
+    marker = :circle, markersize = 6, color = :white, strokecolor = colorant"#7a2c3a", strokewidth = 1.2)
+
+# scatter!(ax_arcs, bif_points[1,proven_bif], bif_points[2,proven_bif];
+#     marker = :diamond, markersize = 8, color = col_green, strokecolor = :black, strokewidth = 1)
+
+#-
+
+Legend(fig_skt[2,1], ax_skt;
+    merge = true, framevisible = false, orientation = :horizontal, nbanks = 3)
 
 display(fig_skt)
-end
+
+save(joinpath(@__DIR__, "skt_bifurcation_diagram.pdf"), fig_skt)

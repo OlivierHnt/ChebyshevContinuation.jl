@@ -2,8 +2,11 @@ version = "1.0.0"
 authors = ["Olivier Hénot"]
 
 [deps]
+CairoMakie = "13f3f980-e62b-5c42-98c6-ff1f3baf88f0"
 GLMakie = "e9467ef8-e4e7-5192-8a1a-b1aee30e663a"
+JLD2 = "033835bb-8acc-5ee8-8aae-3f567f8a3819"
 LinearAlgebra = "37e2e46d-f89d-539d-b4ee-838fcccc9c8e"
+MAT = "23992714-dd62-5051-b70f-ba57cb901cac"
 RadiiPolynomial = "f2081a94-c849-46b6-8dc9-07bb90ed72a9"
 
 [compat]

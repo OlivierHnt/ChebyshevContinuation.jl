@@ -1,5 +1,5 @@
 using RadiiPolynomial, LinearAlgebra
-using GLMakie
+using CairoMakie # for interactivity, use GLMakie instead
 
 
 
@@ -116,25 +116,53 @@ ie, proved = interval_of_existence(Y, Z₁, Z₂, r_star; verbose = true)
 
 # Plot
 
-fig_sqrt = Figure()
-ax_sqrt = Axis(fig_sqrt[1,1]; aspect = DataAspect())
+set_theme!(theme_latexfonts(); fontsize = 14)
+
+col_blue, col_green, col_red = colorant"#4477AA", colorant"#228833", colorant"#EE6677" # Tol bright palette
+
+fig_sqrt = Figure(; size = (550, 430)) # compact, true aspect: suited to the LaTeX scale option
+ax_sqrt = Axis(fig_sqrt[1,1]; xlabel = L"\lambda", ylabel = L"x", aspect = DataAspect())
 
 lines!(ax_sqrt, LinRange(0, 1.5, 501), λ ->  sqrt(λ);
-    color = :red, linewidth = 1, linestyle = :dash, label = "square root")
+    color = :gray30, linewidth = 1.5, linestyle = :dash, label = L"x^2 = \lambda")
 lines!(ax_sqrt, LinRange(0, 1.5, 501), λ -> -sqrt(λ);
-    color = :red, linewidth = 1, linestyle = :dash, label = "square root")
+    color = :gray30, linewidth = 1.5, linestyle = :dash, label = L"x^2 = \lambda")
 
-for i ∈ 1:N+1
+for j ∈ 1:N+1
     lines!(ax_sqrt, [Point2f(
-        (-(r + u_grid[i][1]) * u̇_grid[i][1] + dot(u_grid[i], u̇_grid[i]))/u̇_grid[i][2],
-           r + u_grid[i][1])
-        for r ∈ LinRange(-0.1u̇_grid[i][2], 0.1u̇_grid[i][2], 2)]; color = :green, label = "intersecting planes")
+        (-(r + u_grid[j][1]) * u̇_grid[j][1] + dot(u_grid[j], u̇_grid[j]))/u̇_grid[j][2],
+           r + u_grid[j][1])
+        for r ∈ LinRange(-0.1u̇_grid[j][2], 0.1u̇_grid[j][2], 2)];
+        color = (col_red, 0.8), linewidth = 1.5, label = "intersecting planes")
 end
 
-lines!(ax_sqrt, [Point2f(mid(u_cheb[2])(s), mid(u_cheb[1])(s)) for s ∈ LinRange(-1, 1, 101)];
-    color = :blue, linewidth = 2, label = "Chebyshev interpolant")
-scatter!(ax_sqrt, Point2f.(reverse.(u_grid)); color = :blue)
+lines!(ax_sqrt, [Point2f(mid(u_cheb[2])(s), mid(u_cheb[1])(s)) for s ∈ LinRange(-1, 1, 501)];
+    color = col_blue, linewidth = 2.5, label = "Chebyshev interpolant")
+scatter!(ax_sqrt, Point2f.(reverse.(u_grid)); color = col_blue, markersize = 7, label = "grid points")
 
-axislegend(ax_sqrt; position = :rc, merge = true)
+#- the two components of the interpolant along the arclength
+# the Chebyshev variable s ∈ [-1,1] relates to the arclength σ via σ = arclength * (1 - s) / 2
+
+ax2_sqrt = Axis(fig_sqrt[1,2]; xlabel = L"\frac{L}{2}(s + 1)")
+
+lines!(ax2_sqrt, [Point2f(arclength * (1 - s) / 2, mid(u_cheb[2])(s)) for s ∈ LinRange(-1, 1, 501)];
+    color = col_green, linewidth = 2.5)
+scatter!(ax2_sqrt, arclength_grid, getindex.(u_grid, 2); color = col_green, markersize = 7)
+
+lines!(ax2_sqrt, [Point2f(arclength * (1 - s) / 2, mid(u_cheb[1])(s)) for s ∈ LinRange(-1, 1, 501)];
+    color = col_blue, linewidth = 2.5)
+scatter!(ax2_sqrt, arclength_grid, getindex.(u_grid, 1); color = col_blue, markersize = 7)
+
+text!(ax2_sqrt, Point2f(2.45, 0.75); text = L"\lambda", color = col_green, fontsize = 18)
+text!(ax2_sqrt, Point2f(2.45, -0.45); text = L"x", color = col_blue, fontsize = 18)
+
+#-
+
+Legend(fig_sqrt[2,1:2], ax_sqrt;
+    merge = true, framevisible = false, orientation = :horizontal, nbanks = 2)
+
+colsize!(fig_sqrt.layout, 1, Aspect(1, 0.68)) # so the DataAspect panel fills its column (data ratio 1.7:2.5)
 
 display(fig_sqrt)
+
+save(joinpath(@__DIR__, "square_root.pdf"), fig_sqrt)

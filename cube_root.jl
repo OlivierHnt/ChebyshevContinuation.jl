@@ -1,5 +1,5 @@
 using RadiiPolynomial
-using GLMakie
+using CairoMakie # for interactivity, use GLMakie instead
 
 
 
@@ -87,14 +87,31 @@ ie, proved = interval_of_existence(Y, Z₁, Z₂, r_star; verbose = true)
 
 # Plot
 
-fig_cbrt = Figure()
-ax_cbrt = Axis(fig_cbrt[1,1]; aspect = DataAspect())
+set_theme!(theme_latexfonts(); fontsize = 14)
 
-lines!(ax_cbrt, LinRange(-3, 1.5, 5101), λ -> cbrt(λ + 2); color = :red, linewidth = 1, linestyle = :dash, label = "cubic root")
+col_blue, col_green, col_red = colorant"#4477AA", colorant"#228833", colorant"#EE6677" # Tol bright palette
 
-lines!(ax_cbrt, LinRange(-1, 1, 501), λ -> mid(x_cheb)(λ); color = :blue, linewidth = 2, label = "Chebyshev interpolant")
-scatter!(ax_cbrt, λ_grid, x_grid; color = :blue)
+fig_cbrt = Figure(; size = (340, 265)) # compact, true aspect: suited to wrapped text and the LaTeX scale option
+ax_cbrt = Axis(fig_cbrt[1,1]; xlabel = L"\lambda", ylabel = L"x", aspect = DataAspect())
 
-axislegend(ax_cbrt; position = :lt)
+lines!(ax_cbrt, LinRange(-3, 1.5, 501), λ -> cbrt(λ + 2);
+    color = :gray30, linewidth = 1.5, linestyle = :dash, label = L"x^3 = \lambda + 2")
+
+lines!(ax_cbrt, LinRange(-1, 1, 501), λ -> mid(x_cheb)(λ);
+    color = col_blue, linewidth = 2.5, label = "Chebyshev interpolant")
+scatter!(ax_cbrt, λ_grid, x_grid; color = col_blue, markersize = 7, label = "grid points")
+
+leg_cbrt = fig_cbrt[2,1] = GridLayout()
+Legend(leg_cbrt[1,1],
+    [LineElement(; color = :gray30, linewidth = 1.5, linestyle = :dash)],
+    [L"x^3 = \lambda + 2"]; framevisible = false, tellheight = true, tellwidth = false, halign = :right)
+Legend(leg_cbrt[1,2],
+    [LineElement(; color = col_blue, linewidth = 2.5),
+     MarkerElement(; color = col_blue, marker = :circle, markersize = 7)],
+    ["Chebyshev interpolant", "grid points"]; framevisible = false, tellheight = true, tellwidth = false, halign = :left)
+colsize!(leg_cbrt, 1, Auto(0.35))
+colsize!(leg_cbrt, 2, Auto(0.65))
 
 display(fig_cbrt)
+
+save(joinpath(@__DIR__, "cube_root.pdf"), fig_cbrt)

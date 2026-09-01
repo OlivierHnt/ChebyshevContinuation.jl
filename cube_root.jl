@@ -99,7 +99,7 @@ lines!(ax_cbrt, LinRange(-3, 1.5, 501), λ -> cbrt(λ + 2);
 
 lines!(ax_cbrt, LinRange(-1, 1, 501), λ -> mid(x_cheb)(λ);
     color = col_blue, linewidth = 2.5, label = "Chebyshev interpolant")
-scatter!(ax_cbrt, λ_grid, x_grid; color = col_blue, markersize = 7, label = "grid points")
+scatter!(ax_cbrt, λ_grid, x_grid; color = col_blue, markersize = 7, label = "interpolation points")
 
 leg_cbrt = fig_cbrt[2,1] = GridLayout()
 Legend(leg_cbrt[1,1],
@@ -108,8 +108,8 @@ Legend(leg_cbrt[1,1],
 Legend(leg_cbrt[1,2],
     [LineElement(; color = col_blue, linewidth = 2.5),
      MarkerElement(; color = col_blue, marker = :circle, markersize = 7)],
-    ["Chebyshev interpolant", "grid points"]; framevisible = false, tellheight = true, tellwidth = false, halign = :left)
-colsize!(leg_cbrt, 1, Auto(0.35))
+    ["Chebyshev interpolant", "interpolation points"]; framevisible = false, tellheight = true, tellwidth = false, halign = :left)
+colsize!(leg_cbrt, 1, Auto(0.20))
 colsize!(leg_cbrt, 2, Auto(0.65))
 
 display(fig_cbrt)

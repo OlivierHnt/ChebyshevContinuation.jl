@@ -171,12 +171,18 @@ ie, proved = interval_of_existence(Y, Z₁, Z₂, r_star; verbose = true)
 
 # collect the data of this parameterization for the figures drawn after the loop
 
+# push!(patch_data, (;
+#     s₁_grid = [-cospi(j₁/N₁) for j₁ ∈ 0:N₁, j₂ ∈ 0:N₂],
+#     s₂_grid = [-cospi(j₂/N₂) for j₁ ∈ 0:N₁, j₂ ∈ 0:N₂],
+#     c_grid = getindex.(θ_grid, 1),
+#     β_grid = getindex.(θ_grid, 2),
+#     vals = [norm(v_grid[j₁,j₂], 2) for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1]))
 push!(patch_data, (;
-    s₁_grid = [-cospi(j₁/N₁) for j₁ ∈ 0:N₁, j₂ ∈ 0:N₂],
-    s₂_grid = [-cospi(j₂/N₂) for j₁ ∈ 0:N₁, j₂ ∈ 0:N₂],
-    c_grid = getindex.(θ_grid, 1),
-    β_grid = getindex.(θ_grid, 2),
-    vals = [norm(v_grid[j₁,j₂], 2) for j₁ ∈ 1:N₁+1, j₂ ∈ 1:N₂+1]))
+    s₁_grid = [cospi(j₁/100) for j₁ ∈ 0:100, j₂ ∈ 0:100],
+    s₂_grid = [cospi(j₂/100) for j₁ ∈ 0:100, j₂ ∈ 0:100],
+    c_grid = real.(to_grid(mid(c_cheb), (101, 101))),
+    β_grid = real.(to_grid(mid(β_cheb), (101, 101))),
+    vals = mid.(norm.(to_grid(v_cheb, (101, 101)), 2))))
 end
 
 
@@ -223,8 +229,8 @@ for (r, data) ∈ enumerate(patch_data)
         colormap = :batlow, color = data.vals, colorrange = crange,
         rasterize = 4) # embed as bitmap: avoids white polygon seams and rendering glitches in PDF viewers
 
-    wireframe!(ax_c, data.s₁_grid, data.s₂_grid, data.c_grid;
-        color = (:black, 0.25), linewidth = 0.6)
+    # wireframe!(ax_c, data.s₁_grid, data.s₂_grid, data.c_grid;
+    #     color = (:black, 0.25), linewidth = 0.6)
 
     ax_β = Axis3(fig_param[r,2]; protrusions = (10, 70, 25, 25),
         azimuth = 1.6π, # rotated so the valley of the β surface is visible
@@ -236,8 +242,8 @@ for (r, data) ∈ enumerate(patch_data)
         colormap = :batlow, color = data.vals, colorrange = crange,
         rasterize = 4) # embed as bitmap: avoids white polygon seams and rendering glitches in PDF viewers
 
-    wireframe!(ax_β, data.s₁_grid, data.s₂_grid, data.β_grid;
-        color = (:black, 0.25), linewidth = 0.6)
+    # wireframe!(ax_β, data.s₁_grid, data.s₂_grid, data.β_grid;
+    #     color = (:black, 0.25), linewidth = 0.6)
 end
 
 for (panel_label, (r, c)) ∈ zip(["A", "B", "C", "D"], [(1,1), (1,2), (2,1), (2,2)])
